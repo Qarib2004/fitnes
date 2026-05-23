@@ -44,4 +44,14 @@ export class BookingsController {
   ) {
     return this.bookingsService.markAttendance(request.user, id, dto)
   }
+
+  @Patch('trainer/bookings/:id/attendance')
+  @Roles('trainer', 'admin')
+  markTrainerAttendance(
+    @Req() request: RequestWithUser,
+    @Param('id') id: string,
+    @Body() dto: MarkAttendanceDto
+  ) {
+    return this.bookingsService.markAttendance(request.user, id, dto)
+  }
 }

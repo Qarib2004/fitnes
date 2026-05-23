@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   NotFoundException
@@ -14,6 +15,7 @@ import { ScheduleQueryDto } from './dto/schedule-query.dto'
 import { UpdateClassDto } from './dto/update-class.dto'
 import { UpdateRoomDto } from './dto/update-room.dto'
 import { UpdateScheduleSlotDto } from './dto/update-schedule-slot.dto'
+import type { AuthUser } from '../auth/auth.types'
 import type { Db } from '../database'
 
 @Injectable()
@@ -152,6 +154,37 @@ export class ScheduleService {
       .orderBy(asc(schedule.startsAt))
   }
 
+  listTrainerSchedule(user: AuthUser, query: ScheduleQueryDto) {
+    return this.list({
+      ...query,
+      trainerId: user.id
+    })
+  }
+
+  async listTrainerSlotBookings(user: AuthUser, slotId: string) {
+    await this.assertTrainerOwnsSlot(user, slotId)
+
+    return this.db
+      .select({
+        id: bookings.id,
+        status: bookings.status,
+        userId: users.id,
+        userName: users.name,
+        userEmail: users.email,
+        startsAt: schedule.startsAt,
+        endsAt: schedule.endsAt,
+        classTitle: classes.title,
+        roomTitle: rooms.title
+      })
+      .from(bookings)
+      .innerJoin(users, eq(bookings.userId, users.id))
+      .innerJoin(schedule, eq(bookings.scheduleId, schedule.id))
+      .innerJoin(classes, eq(schedule.classId, classes.id))
+      .leftJoin(rooms, eq(schedule.roomId, rooms.id))
+      .where(eq(bookings.scheduleId, slotId))
+      .orderBy(asc(users.name))
+  }
+
   async createSlot(dto: CreateScheduleSlotDto) {
     const startsAt = new Date(dto.startsAt)
     const endsAt = new Date(dto.endsAt)
@@ -282,5 +315,26 @@ export class ScheduleService {
     if (roomConflict) {
       throw new BadRequestException('Room already has a class at this time')
     }
+  }
+
+  private async assertTrainerOwnsSlot(user: AuthUser, slotId: string) {
+    const [slot] = await this.db
+      .select({
+        id: schedule.id,
+        trainerId: schedule.trainerId
+      })
+      .from(schedule)
+      .where(eq(schedule.id, slotId))
+      .limit(1)
+
+    if (!slot) {
+      throw new NotFoundException('Schedule slot not found')
+    }
+
+    if (user.role !== 'admin' && slot.trainerId !== user.id) {
+      throw new ForbiddenException('You can manage only your own schedule')
+    }
+
+    return slot
   }
 }
