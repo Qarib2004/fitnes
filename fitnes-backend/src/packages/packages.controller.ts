@@ -16,7 +16,6 @@ import { UpdatePackageDto } from './dto/update-package.dto'
 import { PackagesService } from './packages.service'
 
 @Controller()
-@UseGuards(AuthGuard)
 export class PackagesController {
   constructor(private readonly packagesService: PackagesService) {}
 
@@ -26,24 +25,28 @@ export class PackagesController {
   }
 
   @Post('admin/packages')
+  @UseGuards(AuthGuard)
   @Roles('admin')
   create(@Body() dto: CreatePackageDto) {
     return this.packagesService.create(dto)
   }
 
   @Post('admin/client-packages')
+  @UseGuards(AuthGuard)
   @Roles('admin')
   assign(@Body() dto: AssignPackageDto) {
     return this.packagesService.assign(dto)
   }
 
   @Patch('admin/packages/:id')
+  @UseGuards(AuthGuard)
   @Roles('admin')
   update(@Param('id') id: string, @Body() dto: UpdatePackageDto) {
     return this.packagesService.update(id, dto)
   }
 
   @Delete('admin/packages/:id')
+  @UseGuards(AuthGuard)
   @Roles('admin')
   delete(@Param('id') id: string) {
     return this.packagesService.delete(id)
